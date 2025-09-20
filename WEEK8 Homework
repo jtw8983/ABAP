@@ -1,0 +1,235 @@
+*&---------------------------------------------------------------------*
+*& Report ZTESTWEEK8_HWK
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ZTESTWEEK8_HWK. "항공사 에약 조회 프로그램 포트폴리오"
+
+
+TABLES: sbook.
+
+TYPE-POOLS: slis.
+
+
+*&---------------------------------------------------------------------*
+*Data Declaration  "데이터 선언"
+*&---------------------------------------------------------------------*
+
+
+TYPES: BEGIN OF t_sbook,
+  carrid TYPE sbook-carrid,
+  connid TYPE sbook-connid,
+  fldate TYPE sbook-fldate,
+  bookid TYPE sbook-bookid,
+  customid TYPE sbook-customid,
+  loccuram TYPE sbook-loccuram,
+  loccurkey TYPE sbook-loccurkey,
+  order_date TYPE sbook-order_date,
+  cancelled TYPE sbook-cancelled,
+ END OF t_sbook.
+
+
+DATA: it_sbook TYPE STANDARD TABLE OF t_sbook,
+      wa_sbook TYPE t_sbook.
+
+*&---------------------------------------------------------------------*
+*ALV data Declaration  " ALV 데이터 선언"
+*&---------------------------------------------------------------------*
+
+DATA: fieldcatalog TYPE slis_t_fieldcat_alv WITH HEADER LINE,
+      gd_tab_group TYPE slis_t_sp_group_alv,
+      gd_layout    TYPE slis_layout_alv,
+      gd_repid     LIKE sy-repid.
+
+DATA: t TYPE slis_t_sp_group_alv.
+
+
+*&---------------------------------------------------------------------*
+*SELECT-OPTION "SELECT-OPTION 선언- 여기선 2개"
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN BEGIN OF BLOCK part1 WITH FRAME TITLE text-001.
+  PARAMETERS p_carrid TYPE sbook-carrid OBLIGATORY DEFAULT 'AA'.
+  PARAMETERS p_connid TYPE sbook-connid OBLIGATORY DEFAULT '0017'.
+  PARAMETERS p_fldate TYPE sbook-fldate OBLIGATORY DEFAULT '20171219'.
+SELECTION-SCREEN END OF BLOCK part1.
+
+SELECTION-SCREEN SKIP.
+
+SELECTION-SCREEN BEGIN OF BLOCK part2 WITH FRAME TITLE text-002.
+  SELECT-OPTIONS s_custid FOR sbook-customid.
+    PARAMETERS: r1 RADIOBUTTON GROUP rad1 DEFAULT 'X',
+                r2 RADIOBUTTON GROUP rad1,
+                r3 RADIOBUTTON GROUP rad1.
+SELECTION-SCREEN END OF BLOCK part2.
+
+
+*&---------------------------------------------------------------------*
+*START-OF-SELECTION.
+*&---------------------------------------------------------------------*
+
+START-OF-SELECTION.
+  PERFORM DATA_RETRIEVAL.
+  PERFORM BUILD_FIELDCATALOG.
+  PERFORM BUILD_LAYOUT.
+  PERFORM DISPLAY_ALV_REPORT.
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       Build Fieldcatalog for ALV Report
+*----------------------------------------------------------------------*
+FORM build_fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CARRID'.
+  fieldcatalog-seltext_m   = 'Airline Code'.
+  fieldcatalog-col_pos     = 0.
+  fieldcatalog-key         = 'X'.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CONNID'.
+  fieldcatalog-seltext_m   = 'Flight Connection Number'.
+  fieldcatalog-col_pos     = 1.
+  fieldcatalog-key         = 'X'.
+  fieldcatalog-lzero       = 'X'.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'FLDATE'.
+  fieldcatalog-seltext_m   = 'Flight date'.
+  fieldcatalog-col_pos     = 2.
+  fieldcatalog-key         = 'X'.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'BOOKID'.
+  fieldcatalog-seltext_m   = 'Booking number'.
+  fieldcatalog-col_pos     = 3.
+  fieldcatalog-lzero       = 'X'.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+
+  fieldcatalog-fieldname   = 'CUSTOMID'.
+  fieldcatalog-seltext_m   = 'Customer Number'.
+  fieldcatalog-col_pos     = 4.
+  fieldcatalog-lzero       = 'X'.
+  fieldcatalog-hotspot     = 'X'.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'LOCCURAM'.
+  fieldcatalog-seltext_m   = 'Price of booking in local currency of airline'.
+  fieldcatalog-col_pos     = 5.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'LOCCURKEY'.
+  fieldcatalog-seltext_m   = 'Local currency of airline'.
+  fieldcatalog-col_pos     = 6.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'ORDER_DATE'.
+  fieldcatalog-seltext_m   = 'Booking Date'.
+  fieldcatalog-col_pos     = 7.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+  fieldcatalog-fieldname   = 'CANCELLED'.
+  fieldcatalog-seltext_m   = 'Cancelation flag'.
+  fieldcatalog-col_pos     = 8.
+  APPEND fieldcatalog TO fieldcatalog.
+  CLEAR  fieldcatalog.
+
+ENDFORM.                    " BUILD_FIELDCATALOG
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+*       Build layout for ALV grid report
+*----------------------------------------------------------------------*
+FORM build_layout.
+
+  gd_layout-no_input          = 'X'.
+  gd_layout-colwidth_optimize = 'X'.
+  gd_layout-zebra = 'X'.
+*  gd_layout-info_fieldname =      'LINE_COLOR'.
+*  gd_layout-def_status = 'A'.
+
+ENDFORM.                    " BUILD_LAYOUT
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV_REPORT
+*&---------------------------------------------------------------------*
+*       Display report using ALV grid
+*----------------------------------------------------------------------*
+FORM display_alv_report.
+  gd_repid = sy-repid.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = gd_repid
+      is_layout          = gd_layout
+      it_fieldcat        = fieldcatalog[]
+      i_save             = 'X'
+    TABLES
+      t_outtab           = it_sbook
+    EXCEPTIONS
+      program_error      = 1
+      OTHERS             = 2.
+  IF sy-subrc <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+
+ENDFORM.                    " DISPLAY_ALV_REPORT
+
+
+*&---------------------------------------------------------------------*
+*&      Form  DATA_RETRIEVAL
+*&---------------------------------------------------------------------*
+*       Retrieve data form SBOOK table and populate itab it_sbook.
+*---------------------------------------------------------------------*
+FORM data_retrieval.
+  DATA: ld_color(1) TYPE c.   "PERFORM 구문 안에서만 쓸 수 있다. => '로컬변수'"
+
+
+  IF r1 = 'X'.
+
+  SELECT carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
+    FROM sbook
+    INTO TABLE it_sbook
+    WHERE carrid = p_carrid
+      AND connid = p_connid
+      AND fldate = p_fldate
+      AND customid IN s_custid.
+
+  ELSEIF r2 = 'X'.
+
+  SELECT carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
+    FROM sbook
+    INTO TABLE it_sbook
+    WHERE carrid = p_carrid
+      AND connid = p_connid
+      AND fldate = p_fldate
+      AND customid IN s_custid
+      AND cancelled <> 'X'.
+
+  ELSEIF r3 = 'X'.
+
+  SELECT carrid connid fldate bookid customid loccuram loccurkey order_date cancelled
+    FROM sbook
+    INTO TABLE it_sbook
+    WHERE carrid = p_carrid
+      AND connid = p_connid
+      AND fldate = p_fldate
+      AND customid IN s_custid
+      AND cancelled = 'X'.
+
+ENDIF.
+ENDFORM.                    " DATA_RETRIEVAL"
